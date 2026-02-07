@@ -8,7 +8,7 @@ The tool extracts email metadata, normalizes dates, lists attachments, and conve
 
 ## Features
 
-- Parse `.eml` files (RFC 5322)
+- Parse `.eml` / `.elm` files (RFC 5322, case-insensitive extension matching)
 - Generate one `mail_*.md` file per email
 - YAML frontmatter with normalized metadata
 - Three date representations:

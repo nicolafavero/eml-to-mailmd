@@ -1,3 +1,19 @@
+## Stato / Decisione di adozione
+
+Il repository ha adottato un sistema di task tracking a due livelli (UR → REQ) sotto `docs/`,
+con struttura diversa rispetto alla bozza iniziale contenuta in questo prompt:
+
+- **Struttura effettiva:** `docs/user-requests/`, `docs/working/`, `docs/archive/`
+  (anziché `requests/pending/` e `requests/implemented/`)
+- **UR-001 implementato** con adattamento strutturale: il concetto di base è stato mantenuto,
+  ma la gerarchia di directory e il workflow sono stati ridefiniti.
+- **Fonte di verità operativa:** [`docs/README.md`](../../README.md) descrive il workflow
+  e le convenzioni attualmente in uso.
+
+Il prompt originale è conservato integralmente di seguito a scopo di audit.
+
+---
+
 Prompt: Create Implementation Request Tracking System
 
   You are working in a Git repository for eml-to-mailmd, a single-file Python CLI tool (eml_to_mailmd.py) that converts .eml
