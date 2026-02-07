@@ -36,7 +36,7 @@ The tool extracts email metadata, normalizes dates, lists attachments, and conve
 Clone the repository:
 
 ```bash
-git clone git@github.com:nicolafavero/mail-to-md.git
+git clone git@github.com:nicolafavero/eml-to-mailmd.git
 ```
 
 Optional: create a wrapper command (example assumes `~/bin` is in PATH):
@@ -45,8 +45,8 @@ Optional: create a wrapper command (example assumes `~/bin` is in PATH):
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT="$HOME/src/mail-to-md/eml_to_mailmd.py"
-uvx python "$SCRIPT" "${1:-.}"
+SCRIPT="$HOME/src/eml-to-mailmd/eml_to_mailmd.py"
+python3 "$SCRIPT" "$@"
 ```
 
 Save as `~/bin/eml2md` and make executable:
@@ -74,7 +74,7 @@ eml2md /path/to/folder
 ### Direct script execution
 
 ```bash
-uvx python eml_to_mailmd.py /path/to/folder
+python3 eml_to_mailmd.py /path/to/folder
 ```
 
 ---
