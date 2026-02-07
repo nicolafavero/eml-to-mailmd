@@ -57,3 +57,12 @@
   - interrompere il lavoro
   - segnalare il fatto
   - chiedere come procedere
+
+## Task Tracking
+
+User requests and implementation tasks are tracked in `docs/`.
+See [`docs/README.md`](./docs/README.md) for the full workflow.
+
+- `docs/user-requests/UR-NNN/input.md` — high-level requests (Author field identifies human or AI origin)
+- `docs/working/REQ-NNN-*.md` — active implementation tasks
+- `docs/archive/REQ-NNN-*.md` — completed tasks
