@@ -81,7 +81,7 @@ uvx python eml_to_mailmd.py /path/to/folder
 
 ## Input
 
-- One or more `.eml` files
+- One or more `.eml` / `.elm` files (extension matching is case-insensitive)
 - Default: non-recursive scan
 - Optional `--recursive` flag supported
 

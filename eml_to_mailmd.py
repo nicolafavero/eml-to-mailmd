@@ -45,6 +45,11 @@ def strip_html(html: str) -> str:
     return stripper.get_text()
 
 
+def yaml_escape(value: str) -> str:
+    """Escape a string value for safe YAML double-quoted output."""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def safe_filename(s: str) -> str:
     # Keep it predictable across OS/filesystems
     s = s.strip()
@@ -132,6 +137,9 @@ def pick_body(msg: EmailMessage) -> str:
             continue
 
         ctype = part.get_content_type()
+        if ctype not in ("text/plain", "text/html"):
+            continue
+
         try:
             content = part.get_content()
         except Exception:
@@ -207,19 +215,18 @@ def build_mail_md(
     # YAML (simple, predictable)
     lines: List[str] = []
     lines.append("---")
-    lines.append(f'from: "{from_v}"')
-    lines.append(f'to: "{to_v}"')
-    lines.append(f'cc: "{cc_v}"')
-    lines.append(f'bcc: "{bcc_v}"')
-    lines.append(f'subject: "{subject_v}"')
-    lines.append(f'date_raw: "{date_raw}"')
-    lines.append(f'date_iso: "{date_iso}"')
-    lines.append(f'date_local: "{date_local}"')
+    lines.append(f'from: "{yaml_escape(from_v)}"')
+    lines.append(f'to: "{yaml_escape(to_v)}"')
+    lines.append(f'cc: "{yaml_escape(cc_v)}"')
+    lines.append(f'bcc: "{yaml_escape(bcc_v)}"')
+    lines.append(f'subject: "{yaml_escape(subject_v)}"')
+    lines.append(f'date_raw: "{yaml_escape(date_raw)}"')
+    lines.append(f'date_iso: "{yaml_escape(date_iso)}"')
+    lines.append(f'date_local: "{yaml_escape(date_local)}"')
     lines.append("attachments:")
     if attachments:
         for a in attachments:
-            a_clean = a.replace('"', "'")
-            lines.append(f'  - "{a_clean}"')
+            lines.append(f'  - "{yaml_escape(a)}"')
     else:
         lines.append('  - ""')
     lines.append("---")
@@ -279,11 +286,12 @@ def process_file(path: Path) -> Result:
 
 
 def find_eml_files(folder: Path) -> List[Path]:
-    # Support both .eml and .elm (typo-proof)
+    # Support both .eml and .elm (typo-proof), case-insensitive
     files: List[Path] = []
-    for ext in ("*.eml", "*.elm"):
-        files.extend(folder.glob(ext))
-    return sorted(set(files))
+    for p in folder.iterdir():
+        if p.is_file() and p.suffix.lower() in (".eml", ".elm"):
+            files.append(p)
+    return sorted(files)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -316,7 +324,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
 
     if args.recursive:
-        emls = sorted({p for p in folder.rglob("*.eml")} | {p for p in folder.rglob("*.elm")})
+        emls = sorted(
+            p for p in folder.rglob("*")
+            if p.is_file() and p.suffix.lower() in (".eml", ".elm")
+        )
     else:
         emls = find_eml_files(folder)
 
