@@ -3,7 +3,7 @@
 ## Scope
 - Questo repository contiene una CLI Python singola (`eml_to_mailmd.py`) che converte file email `.eml/.elm` in file Markdown `mail_*.md` con frontmatter YAML.
 - File core:
-  - `eml_to_mailmd.py`: parsing email, estrazione metadati/allegati/corpo, scrittura output
+  - `eml_to_mailmd.py`: parsing email, estrazione metadati/allegati/corpo, YAML escaping, scrittura output
   - `README.md`: usage e formato output
 - Vincoli tecnici:
   - Python 3.11+
@@ -11,7 +11,7 @@
   - Fallback accettato: `python3` locale solo se `uv/uvx` non disponibile
   - Solo standard library (niente dipendenze esterne) salvo richiesta esplicita
 - Comportamento atteso:
-  - supporto `.eml` e `.elm`
+  - supporto `.eml` e `.elm` (case-insensitive)
   - output nella stessa cartella del sorgente
   - gestione collisioni filename con `_1`, `_2`, ...
   - date `date_raw`, `date_iso`, `date_local` (`Europe/Rome`)
@@ -36,8 +36,10 @@
 2. Se disponibili `.eml/.elm`, fare almeno una conversione di prova.
 3. Verificare che il file `mail_*.md` prodotto contenga:
    - frontmatter YAML con campi chiave (`from`, `to`, `subject`, date, `attachments`)
+   - valori YAML correttamente escaped (backslash, doppi apici)
    - corpo non vuoto quando presente nel sorgente
 4. Verificare che collisioni filename vengano risolte correttamente (`_1`, `_2`, ...).
+5. Verificare che file con estensione maiuscola/mista (`.EML`, `.Eml`) vengano riconosciuti.
 
 ## Definition of Done
 - Il comportamento richiesto dal task è implementato senza regressioni evidenti.
