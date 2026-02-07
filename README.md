@@ -17,6 +17,7 @@ The tool extracts email metadata, normalizes dates, lists attachments, and conve
   - `date_local`: ISO 8601 converted to Europe/Rome
 - Attachment name listing
 - Plain text body preferred, HTML stripped if needed
+- Full body extraction with no line limit (all non-attachment text parts)
 - Safe filename generation
 - Automatic filename collision handling (`_1`, `_2`, …)
 
