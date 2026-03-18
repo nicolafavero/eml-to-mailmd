@@ -19,6 +19,7 @@ from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
@@ -257,9 +258,9 @@ def create_console(no_color: bool = False) -> Console:
 def print_result(console: Console, result: Result) -> None:
     """Print a single conversion result with status icon."""
     if result.ok:
-        console.print(f"[green]✓[/] {result.src.name} → {result.out.name}")
+        console.print(f"[green]✓[/] {escape(result.src.name)} → {escape(result.out.name)}")
     else:
-        console.print(f"[red]✗[/] {result.src.name}: {result.message}")
+        console.print(f"[red]✗[/] {escape(result.src.name)}: {escape(result.message)}")
 
 
 def print_summary(console: Console, results: List[Result]) -> None:
@@ -271,9 +272,9 @@ def print_summary(console: Console, results: List[Result]) -> None:
 
     for r in results:
         if r.ok:
-            table.add_row(r.src.name, "[green]✓ OK[/]", r.out.name)
+            table.add_row(escape(r.src.name), "[green]✓ OK[/]", escape(r.out.name))
         else:
-            table.add_row(r.src.name, "[red]✗ Errore[/]", r.message)
+            table.add_row(escape(r.src.name), "[red]✗ Errore[/]", escape(r.message))
 
     console.print()
     console.print(table)
