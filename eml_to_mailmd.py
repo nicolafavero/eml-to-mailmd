@@ -459,6 +459,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         action="store_true",
         help="Disabilita colori e formattazione nell'output.",
     )
+    parser.add_argument(
+        "--keep",
+        action="store_true",
+        help="Non cestinare i file .eml sorgente dopo la conversione.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -486,6 +491,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     results: List[Result] = []
+    msgs: List[Optional[EmailMessage]] = []
     use_progress = len(emls) > 5
 
     if use_progress:
@@ -498,15 +504,34 @@ def main(argv: Optional[List[str]] = None) -> int:
         ) as progress:
             task = progress.add_task("Conversione...", total=len(emls))
             for p in emls:
-                res, _msg = process_file(p)
+                res, msg = process_file(p)
                 results.append(res)
+                msgs.append(msg)
                 print_result(console, res)
                 progress.advance(task)
     else:
         for p in emls:
-            res, _msg = process_file(p)
+            res, msg = process_file(p)
             results.append(res)
+            msgs.append(msg)
             print_result(console, res)
+
+    # Validazione + trash (solo se non --keep)
+    if not args.keep:
+        for i, res in enumerate(results):
+            if not res.ok:
+                continue
+            valid, errors = validate_mail_md(res.out, msgs[i])
+            if valid:
+                trashed, trash_msg = trash_source(res.src)
+                results[i] = Result(res.src, res.out, True, res.message,
+                                    validated=True, trashed=trashed,
+                                    trash_message=trash_msg)
+            else:
+                results[i] = Result(res.src, res.out, True, res.message,
+                                    validated=False, trashed=False,
+                                    validation_errors=tuple(errors))
+            print_post_result(console, results[i])
 
     print_summary(console, results)
 
