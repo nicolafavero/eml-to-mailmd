@@ -54,6 +54,7 @@ def strip_html(raw_html: str) -> str:
 
 def yaml_escape(value: str) -> str:
     """Escape a string value for safe YAML double-quoted output."""
+    value = value.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
@@ -72,17 +73,17 @@ def safe_filename(s: str) -> str:
 
 
 def unique_path(path: Path) -> Path:
+    """Find a non-colliding path, with max attempts guard."""
     if not path.exists():
         return path
     stem = path.stem
     suffix = path.suffix
     parent = path.parent
-    i = 1
-    while True:
+    for i in range(1, 10001):
         candidate = parent / f"{stem}_{i}{suffix}"
         if not candidate.exists():
             return candidate
-        i += 1
+    raise RuntimeError(f"Troppe collisioni per {path} (>10000)")
 
 
 def join_addrs(header_value: str) -> str:
@@ -109,8 +110,25 @@ def parse_date_raw_to_dt(date_raw: str) -> Optional[datetime]:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
-    except Exception:
+    except (ValueError, TypeError):
         return None
+
+
+def _decode_part(part: EmailMessage) -> str | None:
+    """Decode a single MIME part to text, with charset fallback."""
+    try:
+        return part.get_content()
+    except (LookupError, UnicodeDecodeError, KeyError):
+        raw = part.get_payload(decode=True)
+        if raw is None:
+            return None
+        if isinstance(raw, (bytes, bytearray)):
+            charset = part.get_content_charset() or "utf-8"
+            try:
+                return raw.decode(charset, errors="replace")
+            except (LookupError, UnicodeDecodeError):
+                return raw.decode("utf-8", errors="replace")
+        return str(raw)
 
 
 def pick_body(msg: EmailMessage) -> str:
@@ -120,18 +138,10 @@ def pick_body(msg: EmailMessage) -> str:
     # If not multipart, handle directly
     if not msg.is_multipart():
         ctype = msg.get_content_type()
-        try:
-            payload = msg.get_content()
-        except Exception:
-            payload = msg.get_payload(decode=True)
-            if isinstance(payload, (bytes, bytearray)):
-                try:
-                    payload = payload.decode(msg.get_content_charset() or "utf-8", errors="replace")
-                except Exception:
-                    payload = payload.decode("utf-8", errors="replace")
-        if payload is None:
+        payload = _decode_part(msg)
+        if not payload:
             return ""
-        text = str(payload).strip()
+        text = payload.strip()
         if ctype == "text/html":
             return strip_html(text)
         return text
@@ -152,26 +162,10 @@ def pick_body(msg: EmailMessage) -> str:
         if ctype not in ("text/plain", "text/html"):
             continue
 
-        try:
-            content = part.get_content()
-        except Exception:
-            raw = part.get_payload(decode=True)
-            if raw is None:
-                continue
-            
-            charset: str = part.get_content_charset() or "utf-8"
-
-            if isinstance(raw, (bytes, bytearray)):
-                try:
-                    content = raw.decode(charset, errors="replace")
-                except Exception:
-                    content = raw.decode("utf-8", errors="replace")
-            else:
-                # Fallback: stubs a volte dicono che può essere altro
-                content = str(raw)
-        if content is None:
+        content = _decode_part(part)
+        if not content:
             continue
-        content_str = str(content).strip()
+        content_str = content.strip()
         if not content_str:
             continue
 
@@ -203,7 +197,15 @@ def list_attachment_names(msg: EmailMessage) -> List[str]:
     return names
 
 
+MAX_EML_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
 def load_eml(path: Path) -> EmailMessage:
+    size = path.stat().st_size
+    if size > MAX_EML_SIZE:
+        raise ValueError(
+            f"File troppo grande ({size // 1024 // 1024} MB, max {MAX_EML_SIZE // 1024 // 1024} MB)"
+        )
     with path.open("rb") as f:
         msg = BytesParser(policy=policy.default).parse(f)  # type: ignore[arg-type]
     return cast(EmailMessage, msg)
@@ -335,7 +337,7 @@ def print_summary(console: Console, results: List[Result]) -> None:
 def process_file(path: Path) -> tuple[Result, Optional[EmailMessage]]:
     try:
         msg = load_eml(path)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         return Result(path, Path(), False, f"Errore parsing EML: {e}"), None
 
     date_raw = str(msg.get("Date", "")).strip()
@@ -366,8 +368,9 @@ def process_file(path: Path) -> tuple[Result, Optional[EmailMessage]]:
     )
 
     try:
-        out.write_text(md, encoding="utf-8")
-    except Exception as e:
+        with open(out, "x", encoding="utf-8") as f:
+            f.write(md)
+    except OSError as e:
         return Result(path, out, False, f"Errore scrittura output: {e}"), msg
 
     return Result(path, out, True, "OK"), msg
@@ -442,8 +445,19 @@ def trash_source(path: Path) -> tuple[bool, str]:
     try:
         _send2trash(path)
         return True, "Cestinato"
-    except Exception as e:
+    except OSError as e:
         return False, f"Errore cestino: {e}"
+
+
+def _post_process(res: Result, msg: EmailMessage) -> Result:
+    """Validate and optionally trash source after successful conversion."""
+    valid, errors = validate_mail_md(res.out, msg)
+    if valid:
+        trashed, trash_msg = trash_source(res.src)
+        return Result(res.src, res.out, True, res.message,
+                      validated=True, trashed=trashed, trash_message=trash_msg)
+    return Result(res.src, res.out, True, res.message,
+                  validated=False, trashed=False, validation_errors=tuple(errors))
 
 
 def print_post_result(console: Console, result: Result) -> None:
@@ -521,7 +535,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     results: List[Result] = []
-    msgs: List[Optional[EmailMessage]] = []
+    keep = args.keep
     use_progress = len(emls) > 5
 
     if use_progress:
@@ -535,33 +549,22 @@ def main(argv: Optional[List[str]] = None) -> int:
             task = progress.add_task("Conversione...", total=len(emls))
             for p in emls:
                 res, msg = process_file(p)
+                if not keep and res.ok and msg is not None:
+                    res = _post_process(res, msg)
                 results.append(res)
-                msgs.append(msg)
                 print_result(console, res)
+                if not keep and res.ok:
+                    print_post_result(console, res)
                 progress.advance(task)
     else:
         for p in emls:
             res, msg = process_file(p)
+            if not keep and res.ok and msg is not None:
+                res = _post_process(res, msg)
             results.append(res)
-            msgs.append(msg)
             print_result(console, res)
-
-    # Validazione + trash (solo se non --keep)
-    if not args.keep:
-        for i, res in enumerate(results):
-            if not res.ok:
-                continue
-            valid, errors = validate_mail_md(res.out, msgs[i])
-            if valid:
-                trashed, trash_msg = trash_source(res.src)
-                results[i] = Result(res.src, res.out, True, res.message,
-                                    validated=True, trashed=trashed,
-                                    trash_message=trash_msg)
-            else:
-                results[i] = Result(res.src, res.out, True, res.message,
-                                    validated=False, trashed=False,
-                                    validation_errors=tuple(errors))
-            print_post_result(console, results[i])
+            if not keep and res.ok:
+                print_post_result(console, res)
 
     print_summary(console, results)
 
