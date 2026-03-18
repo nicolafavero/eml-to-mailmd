@@ -409,22 +409,22 @@ def validate_mail_md(md_path: Path, msg: EmailMessage) -> tuple[bool, list[str]]
     if not content.strip():
         return False, ["File .md vuoto"]
 
-    # Split on YAML delimiters
-    parts = content.split("---")
-    if len(parts) < 3:
+    # Split on YAML delimiters (line-anchored to avoid false splits on body ---)
+    fm_match = re.search(r'^---\n(.*?)\n---', content, re.DOTALL | re.MULTILINE)
+    if not fm_match:
         return False, ["Frontmatter YAML non trovato (delimitatori --- mancanti)"]
 
-    frontmatter_text = parts[1]
-    body = "---".join(parts[2:]).strip()
+    frontmatter_text = fm_match.group(1)
+    body = content[fm_match.end():].strip()
 
     # --- Content ---
     # Parse frontmatter lines into a dict
+    _FM_LINE = re.compile(r'^(\w+):\s*"(.*)"$')
     fm: dict[str, str] = {}
     for line in frontmatter_text.strip().splitlines():
-        if ":" in line and not line.startswith("  -"):
-            key, _, value = line.partition(":")
-            value = value.strip().strip('"')
-            fm[key.strip()] = value
+        m = _FM_LINE.match(line.strip())
+        if m:
+            fm[m.group(1)] = m.group(2)
 
     # Required fields (must be present and non-empty)
     for field in ("from", "date_raw"):
