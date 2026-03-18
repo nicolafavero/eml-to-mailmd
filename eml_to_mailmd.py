@@ -343,6 +343,70 @@ def process_file(path: Path) -> tuple[Result, Optional[EmailMessage]]:
     return Result(path, out, True, "OK"), msg
 
 
+def validate_mail_md(md_path: Path, msg: EmailMessage) -> tuple[bool, list[str]]:
+    """Validate a generated .md file against its source EmailMessage.
+
+    Three validation levels:
+    - Structure: file exists, non-empty, has YAML frontmatter delimiters
+    - Content: required fields present (from, date_raw), body non-empty
+    - Coherence: field values match source EML (normalized comparison)
+
+    Returns (ok, errors) where errors is empty if ok is True.
+    """
+    errors: list[str] = []
+
+    # --- Structure ---
+    if not md_path.exists():
+        return False, ["File .md non trovato"]
+    content = md_path.read_text(encoding="utf-8")
+    if not content.strip():
+        return False, ["File .md vuoto"]
+
+    # Split on YAML delimiters
+    parts = content.split("---")
+    if len(parts) < 3:
+        return False, ["Frontmatter YAML non trovato (delimitatori --- mancanti)"]
+
+    frontmatter_text = parts[1]
+    body = "---".join(parts[2:]).strip()
+
+    # --- Content ---
+    # Parse frontmatter lines into a dict
+    fm: dict[str, str] = {}
+    for line in frontmatter_text.strip().splitlines():
+        if ":" in line and not line.startswith("  -"):
+            key, _, value = line.partition(":")
+            value = value.strip().strip('"')
+            fm[key.strip()] = value
+
+    # Required fields (must be present and non-empty)
+    for field in ("from", "date_raw"):
+        if not fm.get(field):
+            errors.append(f"Campo obbligatorio mancante o vuoto: {field}")
+
+    # Body must be non-empty
+    if not body:
+        errors.append("Body vuoto")
+
+    # --- Coherence (only for non-empty source fields) ---
+    coherence_checks = {
+        "from": join_addrs(str(msg.get("From", ""))),
+        "to": join_addrs(str(msg.get("To", ""))),
+        "subject": str(msg.get("Subject", "")).replace("\n", " ").strip(),
+    }
+    for field, expected_raw in coherence_checks.items():
+        if not expected_raw:
+            continue  # Skip coherence check if source field is empty
+        expected = _normalize_ws(yaml_escape(expected_raw))
+        actual = _normalize_ws(fm.get(field, ""))
+        if expected != actual:
+            errors.append(
+                f"Coerenza {field}: atteso \"{expected}\", trovato \"{actual}\""
+            )
+
+    return (len(errors) == 0, errors)
+
+
 def trash_source(path: Path) -> tuple[bool, str]:
     """Move source file to OS trash. Returns (success, message)."""
     try:
