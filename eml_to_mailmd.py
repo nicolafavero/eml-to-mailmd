@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import html
 import re
 import sys
@@ -29,12 +30,23 @@ PROGRESS_THRESHOLD = 5
 
 
 class _HTMLStripper(HTMLParser):
+    _SKIP_TAGS = frozenset({"script", "style"})
+
     def __init__(self) -> None:
         super().__init__()
         self._chunks: List[str] = []
+        self._skip_depth: int = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in self._SKIP_TAGS:
+            self._skip_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._SKIP_TAGS and self._skip_depth > 0:
+            self._skip_depth -= 1
 
     def handle_data(self, data: str) -> None:
-        if data:
+        if data and self._skip_depth == 0:
             self._chunks.append(data)
 
     def get_text(self) -> str:
@@ -55,6 +67,8 @@ def strip_html(raw_html: str) -> str:
 def yaml_escape(value: str) -> str:
     """Escape a string value for safe YAML double-quoted output."""
     value = value.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+    value = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', value)
+    value = value.replace("\t", " ")
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
@@ -395,22 +409,22 @@ def validate_mail_md(md_path: Path, msg: EmailMessage) -> tuple[bool, list[str]]
     if not content.strip():
         return False, ["File .md vuoto"]
 
-    # Split on YAML delimiters
-    parts = content.split("---")
-    if len(parts) < 3:
+    # Split on YAML delimiters (line-anchored to avoid false splits on body ---)
+    fm_match = re.search(r'^---\n(.*?)\n---', content, re.DOTALL | re.MULTILINE)
+    if not fm_match:
         return False, ["Frontmatter YAML non trovato (delimitatori --- mancanti)"]
 
-    frontmatter_text = parts[1]
-    body = "---".join(parts[2:]).strip()
+    frontmatter_text = fm_match.group(1)
+    body = content[fm_match.end():].strip()
 
     # --- Content ---
     # Parse frontmatter lines into a dict
+    _FM_LINE = re.compile(r'^(\w+):\s*"(.*)"$')
     fm: dict[str, str] = {}
     for line in frontmatter_text.strip().splitlines():
-        if ":" in line and not line.startswith("  -"):
-            key, _, value = line.partition(":")
-            value = value.strip().strip('"')
-            fm[key.strip()] = value
+        m = _FM_LINE.match(line.strip())
+        if m:
+            fm[m.group(1)] = m.group(2)
 
     # Required fields (must be present and non-empty)
     for field in ("from", "date_raw"):
@@ -538,25 +552,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     keep = args.keep
     use_progress = len(emls) > PROGRESS_THRESHOLD
 
-    if use_progress:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console,
-        ) as progress:
+    ctx = Progress(
+        SpinnerColumn(), TextColumn("{task.description}"),
+        BarColumn(), TaskProgressColumn(), console=console,
+    ) if use_progress else nullcontext()
+
+    with ctx as progress:
+        if progress:
             task = progress.add_task("Conversione...", total=len(emls))
-            for p in emls:
-                res, msg = process_file(p)
-                if not keep and res.ok and msg is not None:
-                    res = _post_process(res, msg)
-                results.append(res)
-                print_result(console, res)
-                if not keep and res.ok:
-                    print_post_result(console, res)
-                progress.advance(task)
-    else:
         for p in emls:
             res, msg = process_file(p)
             if not keep and res.ok and msg is not None:
@@ -565,6 +568,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             print_result(console, res)
             if not keep and res.ok:
                 print_post_result(console, res)
+            if progress:
+                progress.advance(task)
 
     print_summary(console, results)
 
