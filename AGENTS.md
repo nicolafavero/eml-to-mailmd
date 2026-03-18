@@ -19,6 +19,11 @@
   - gestione collisioni filename con `_1`, `_2`, ...
   - date `date_raw`, `date_iso`, `date_local` (`Europe/Rome`)
   - corpo: preferire `text/plain`, fallback `text/html` con stripping
+  - output CLI arricchito con Rich (colori, simboli, progress bar, tabella sommario)
+  - flag `--no-color`: disabilita colori e formattazione
+  - validazione post-conversione (struttura, contenuto, coerenza con EML sorgente)
+  - trash automatico del file `.eml` sorgente dopo validazione riuscita
+  - flag `--keep`: disabilita validazione e trash (comportamento pre-UR-003)
 
 ## Do/Don't
 - Do:
@@ -26,7 +31,7 @@
   - aggiornare `CONTEXT.md` a fine sessione (stato, modifiche recenti, problemi noti, prossimi passi)
   - consultare `git log --oneline -10` per dettagli sulle modifiche recenti
   - leggere `README.md` e `eml_to_mailmd.py` prima di modificare
-  - mantenere compatibilità CLI (`folder` opzionale, `--recursive`)
+  - mantenere compatibilità CLI (`folder` opzionale, `--recursive`, `--no-color`, `--keep`)
   - fare modifiche piccole, mirate al task
   - aggiornare `README.md` quando cambia il comportamento utente
   - mantenere output prevedibile e facile da processare
