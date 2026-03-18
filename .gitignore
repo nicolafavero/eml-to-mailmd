@@ -1,6 +1,34 @@
+# Python bytecode
 __pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+
+# Build / packaging artifacts
+dist/
+build/
+*.egg-info/
+
+# Type checker / linter caches
 .mypy_cache/
+
+# uv local preferences
+.python-version
+
+# Secrets / environment
+.env
+.env.*
+
+# macOS
 .DS_Store
+
+# Editor / IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
 .claude/
