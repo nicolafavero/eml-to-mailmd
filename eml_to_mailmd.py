@@ -18,6 +18,10 @@ from typing import Iterable, List, Optional
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.table import Table
+
 
 ROME_TZ = ZoneInfo("Europe/Rome")
 
@@ -245,6 +249,11 @@ class Result:
     message: str
 
 
+def create_console(no_color: bool = False) -> Console:
+    """Create a Rich Console with optional color suppression."""
+    return Console(no_color=no_color, highlight=False)
+
+
 def process_file(path: Path) -> Result:
     try:
         msg = load_eml(path)
@@ -311,6 +320,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--recursive",
         action="store_true",
         help="Scansiona ricorsivamente (default: no).",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disabilita colori e formattazione nell'output.",
     )
 
     args = parser.parse_args(argv)
