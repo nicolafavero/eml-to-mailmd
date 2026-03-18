@@ -383,28 +383,38 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         emls = find_eml_files(folder)
 
+    console = create_console(args.no_color)
+
     if not emls:
-        print(f"NESSUN FILE: trovati 0 file .eml/.elm in: {folder}", file=sys.stderr)
+        console.print("[yellow]Nessun file .eml/.elm trovato[/]")
         return 1
 
-    ok = 0
-    fail = 0
+    results: List[Result] = []
+    use_progress = len(emls) > 5
 
-    for p in emls:
-        res = process_file(p)
-        if res.ok:
-            ok += 1
-            print(f"OK: {res.src.name} -> {res.out.name}")
-        else:
-            fail += 1
-            print(f"ERRORE: {res.src.name}: {res.message}", file=sys.stderr)
+    if use_progress:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Conversione...", total=len(emls))
+            for p in emls:
+                res = process_file(p)
+                results.append(res)
+                print_result(console, res)
+                progress.advance(task)
+    else:
+        for p in emls:
+            res = process_file(p)
+            results.append(res)
+            print_result(console, res)
 
-    if fail:
-        print(f"RISULTATO: OK={ok} ERRORI={fail}", file=sys.stderr)
-        return 3
+    print_summary(console, results)
 
-    print(f"RISULTATO: OK={ok} ERRORI=0")
-    return 0
+    return 3 if any(not r.ok for r in results) else 0
 
 
 if __name__ == "__main__":
