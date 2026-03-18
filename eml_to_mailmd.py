@@ -8,14 +8,12 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email import policy
-from email.message import Message
 from email.message import EmailMessage
 from email.parser import BytesParser
 from email.utils import getaddresses, parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Iterable, List, Optional
-from typing import Any, cast
+from typing import List, Optional, cast
 from zoneinfo import ZoneInfo
 
 from rich.console import Console
@@ -26,6 +24,8 @@ from send2trash import send2trash as _send2trash
 
 
 ROME_TZ = ZoneInfo("Europe/Rome")
+EML_EXTENSIONS = {".eml", ".elm"}
+PROGRESS_THRESHOLD = 5
 
 
 class _HTMLStripper(HTMLParser):
@@ -212,7 +212,7 @@ def load_eml(path: Path) -> EmailMessage:
 
 
 def build_mail_md(
-    msg: Message,
+    msg: EmailMessage,
     *,
     date_raw: str,
     date_iso: str,
@@ -476,7 +476,7 @@ def find_eml_files(folder: Path) -> List[Path]:
     # Support both .eml and .elm (typo-proof), case-insensitive
     files: List[Path] = []
     for p in folder.iterdir():
-        if p.is_file() and p.suffix.lower() in (".eml", ".elm"):
+        if p.is_file() and p.suffix.lower() in EML_EXTENSIONS:
             files.append(p)
     return sorted(files)
 
@@ -523,7 +523,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.recursive:
         emls = sorted(
             p for p in folder.rglob("*")
-            if p.is_file() and p.suffix.lower() in (".eml", ".elm")
+            if p.is_file() and p.suffix.lower() in EML_EXTENSIONS
         )
     else:
         emls = find_eml_files(folder)
@@ -536,7 +536,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     results: List[Result] = []
     keep = args.keep
-    use_progress = len(emls) > 5
+    use_progress = len(emls) > PROGRESS_THRESHOLD
 
     if use_progress:
         with Progress(
