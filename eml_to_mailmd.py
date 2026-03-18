@@ -254,6 +254,14 @@ def create_console(no_color: bool = False) -> Console:
     return Console(no_color=no_color, highlight=False)
 
 
+def print_result(console: Console, result: Result) -> None:
+    """Print a single conversion result with status icon."""
+    if result.ok:
+        console.print(f"[green]✓[/] {result.src.name} → {result.out.name}")
+    else:
+        console.print(f"[red]✗[/] {result.src.name}: {result.message}")
+
+
 def process_file(path: Path) -> Result:
     try:
         msg = load_eml(path)
