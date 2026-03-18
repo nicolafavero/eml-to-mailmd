@@ -57,6 +57,11 @@ def yaml_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _normalize_ws(s: str) -> str:
+    """Collapse whitespace and strip for normalized comparison."""
+    return " ".join(s.split())
+
+
 def safe_filename(s: str) -> str:
     # Keep it predictable across OS/filesystems
     s = s.strip()
@@ -336,6 +341,27 @@ def process_file(path: Path) -> tuple[Result, Optional[EmailMessage]]:
         return Result(path, out, False, f"Errore scrittura output: {e}"), msg
 
     return Result(path, out, True, "OK"), msg
+
+
+def trash_source(path: Path) -> tuple[bool, str]:
+    """Move source file to OS trash. Returns (success, message)."""
+    try:
+        _send2trash(path)
+        return True, "Cestinato"
+    except Exception as e:
+        return False, f"Errore cestino: {e}"
+
+
+def print_post_result(console: Console, result: Result) -> None:
+    """Print post-conversion status (validation + trash)."""
+    if result.validated and result.trashed:
+        console.print(f"[green]  ↳ validato, cestinato[/]")
+    elif result.validated and not result.trashed:
+        err = escape(result.trash_message) if result.trash_message else "errore sconosciuto"
+        console.print(f"[yellow]  ↳ validato, cestino fallito: {err}[/]")
+    elif not result.validated and result.validation_errors:
+        errors_str = escape("; ".join(result.validation_errors))
+        console.print(f"[yellow]  ↳ validazione fallita: {errors_str}[/]")
 
 
 def find_eml_files(folder: Path) -> List[Path]:
