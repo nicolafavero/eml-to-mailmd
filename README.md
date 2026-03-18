@@ -27,7 +27,7 @@ The tool extracts email metadata, normalizes dates, lists attachments, and conve
 
 - Python 3.11+
 - `uv` / `uvx`
-- Standard library only (no external Python dependencies)
+- [`rich`](https://github.com/Textualize/rich) (installed automatically via `uv sync`)
 
 ---
 
@@ -84,6 +84,7 @@ python3 eml_to_mailmd.py /path/to/folder
 - One or more `.eml` / `.elm` files (extension matching is case-insensitive)
 - Default: non-recursive scan
 - Optional `--recursive` flag supported
+- Optional `--no-color` flag to disable colors and formatting
 
 ---
 
@@ -142,7 +143,7 @@ Followed by the email body in plain text.
 - Provide canonical machine-friendly dates (`date_iso`)
 - Provide human-friendly operational dates (`date_local`)
 - Keep the format simple, predictable, and script-friendly
-- Avoid external dependencies
+- Minimal external dependencies (only `rich` for CLI output)
 
 ---
 
