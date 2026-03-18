@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import html
 import re
 import sys
@@ -551,25 +552,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     keep = args.keep
     use_progress = len(emls) > PROGRESS_THRESHOLD
 
-    if use_progress:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console,
-        ) as progress:
+    ctx = Progress(
+        SpinnerColumn(), TextColumn("{task.description}"),
+        BarColumn(), TaskProgressColumn(), console=console,
+    ) if use_progress else nullcontext()
+
+    with ctx as progress:
+        if progress:
             task = progress.add_task("Conversione...", total=len(emls))
-            for p in emls:
-                res, msg = process_file(p)
-                if not keep and res.ok and msg is not None:
-                    res = _post_process(res, msg)
-                results.append(res)
-                print_result(console, res)
-                if not keep and res.ok:
-                    print_post_result(console, res)
-                progress.advance(task)
-    else:
         for p in emls:
             res, msg = process_file(p)
             if not keep and res.ok and msg is not None:
@@ -578,6 +568,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             print_result(console, res)
             if not keep and res.ok:
                 print_post_result(console, res)
+            if progress:
+                progress.advance(task)
 
     print_summary(console, results)
 
