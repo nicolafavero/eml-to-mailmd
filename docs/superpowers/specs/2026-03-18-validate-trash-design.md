@@ -96,6 +96,7 @@ class Result:
     message: str
     validated: bool = False
     trashed: bool = False
+    trash_message: str = ""
     validation_errors: tuple[str, ...] = ()
 ```
 
