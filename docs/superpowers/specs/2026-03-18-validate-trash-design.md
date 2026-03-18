@@ -43,17 +43,25 @@ Validazione a 3 livelli del file `.md` generato:
 - Il frontmatter YAML è parsabile (delimitato da `---`)
 
 **Contenuto:**
-- Campi obbligatori presenti e non vuoti nel frontmatter: `from`, `to`, `subject`, `date_raw`
+- Campi obbligatori presenti nel frontmatter: `from`, `date_raw`
+- `subject` e `to` verificati solo per coerenza (possono essere legittimamente vuoti
+  in email senza subject o con undisclosed recipients / BCC-only)
 - Body (dopo il secondo `---`) non vuoto
 
 **Coerenza (confronto normalizzato con EML sorgente):**
-- `subject` nel .md corrisponde al subject dell'EML (dopo normalizzazione whitespace)
-- `from` nel .md corrisponde al from dell'EML (dopo normalizzazione whitespace)
-- `to` nel .md corrisponde al to dell'EML (dopo normalizzazione whitespace)
 
-La normalizzazione consiste nel collassare whitespace multiplo in singolo spazio e strip.
-Il confronto avviene tra i valori estratti dall'EML (via `msg` passato come parametro,
-processati con `join_addrs()`) e quelli riletti dal frontmatter YAML del file .md.
+La strategia di confronto **non rilegge il YAML** ma rigenera i valori attesi con le
+stesse funzioni usate in scrittura (`join_addrs()`, `yaml_escape()`) e li confronta
+con le righe corrispondenti nel file `.md`. Questo evita la necessità di un parser YAML
+e garantisce coerenza end-to-end.
+
+Per ogni campo (`from`, `to`, `subject`):
+1. Calcola il valore atteso: `yaml_escape(join_addrs(msg["From"]))` (o equivalente)
+2. Cerca la riga corrispondente nel file .md (es. `from: "..."`)
+3. Confronta dopo normalizzazione whitespace (collapse + strip)
+
+Il confronto di coerenza viene eseguito solo quando il campo nell'EML sorgente è
+non-vuoto. Se l'EML non ha `Subject`, il campo vuoto nel .md è accettato senza errore.
 
 Firma: `validate_mail_md(md_path: Path, msg: EmailMessage) -> tuple[bool, list[str]]`
 Ritorna `(ok, errors)` dove `errors` è la lista degli errori trovati (vuota se ok).
@@ -104,19 +112,30 @@ Nuova firma: `process_file(path: Path) -> tuple[Result, Optional[EmailMessage]]`
 
 La funzione ritorna `(result, msg)` dove `msg` è `None` in caso di errore di parsing.
 
+**Nota:** entrambi i call site in `main()` (branch `use_progress` e branch `else`)
+devono essere aggiornati per fare unpack della tupla.
+
 ### 6. Orchestrazione in `main()`
 
-Dopo il loop di conversione, se `--keep` non è attivo, un secondo passaggio
-sui risultati OK:
+Il loop di conversione in entrambi i branch (progress e no-progress) viene aggiornato
+per unpacking della tupla e accumulo di `msgs`:
 
 ```python
-# Conversione (loop esistente)
+results: List[Result] = []
+msgs: List[Optional[EmailMessage]] = []
+
+# In entrambi i branch (use_progress e else):
 for p in emls:
     res, msg = process_file(p)
     results.append(res)
     msgs.append(msg)
     print_result(console, res)
+```
 
+Dopo il loop di conversione, se `--keep` non è attivo, un secondo passaggio
+sui risultati OK:
+
+```python
 # Validazione + trash (solo se non --keep)
 if not args.keep:
     for i, res in enumerate(results):
@@ -136,6 +155,9 @@ if not args.keep:
 
 Il `.md` generato resta sempre sul disco (anche se la validazione fallisce),
 per consentire debug. Il `.eml` viene cestinato solo se la validazione passa.
+
+La fase di validazione+trash non ha progress bar (è veloce: solo lettura file
+e chiamata OS trash). Nessuna indicazione di progresso necessaria.
 
 ### 7. Output Rich aggiornato
 
@@ -184,6 +206,11 @@ I codici di ritorno restano invariati:
 
 La validazione fallita o il trash fallito NON cambiano l'exit code — la conversione
 è comunque avvenuta. L'informazione è visibile nell'output Rich.
+
+## Interazione con `--recursive`
+
+`--recursive` e trash sono ortogonali. `send2trash` funziona con qualsiasi path
+valido, inclusi file in sottocartelle. Nessun trattamento speciale necessario.
 
 ## File da aggiornare
 
