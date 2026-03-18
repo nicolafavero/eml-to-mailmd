@@ -20,6 +20,8 @@ The tool extracts email metadata, normalizes dates, lists attachments, and conve
 - Full body extraction with no line limit (all non-attachment text parts)
 - Safe filename generation
 - Automatic filename collision handling (`_1`, `_2`, …)
+- Post-conversion validation (structure, content, coherence with source EML)
+- Automatic trash of source .eml after successful validation (disable with `--keep`)
 
 ---
 
@@ -28,6 +30,7 @@ The tool extracts email metadata, normalizes dates, lists attachments, and conve
 - Python 3.11+
 - `uv` / `uvx`
 - [`rich`](https://github.com/Textualize/rich) (installed automatically via `uv sync`)
+- [`send2trash`](https://github.com/arsenetar/send2trash) (installed automatically via `uv sync`)
 
 ---
 
@@ -84,6 +87,7 @@ python3 eml_to_mailmd.py /path/to/folder
 - One or more `.eml` / `.elm` files (extension matching is case-insensitive)
 - Default: non-recursive scan
 - Optional `--recursive` flag supported
+- Optional `--keep` flag to skip validation and trash
 - Optional `--no-color` flag to disable colors and formatting
 
 ---
@@ -135,6 +139,8 @@ Followed by the email body in plain text.
 | `2`  | Target folder does not exist or path is not a directory |
 | `3`  | One or more files failed to convert (partial success) |
 
+> Validation failure or trash failure does not affect exit codes — conversion status determines the exit code. Validation/trash status is visible in the Rich output.
+
 ---
 
 ## Design Principles
@@ -143,7 +149,7 @@ Followed by the email body in plain text.
 - Provide canonical machine-friendly dates (`date_iso`)
 - Provide human-friendly operational dates (`date_local`)
 - Keep the format simple, predictable, and script-friendly
-- Minimal external dependencies (only `rich` for CLI output)
+- Minimal external dependencies (`rich` for CLI output, `send2trash` for OS trash)
 
 ---
 

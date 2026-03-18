@@ -12,7 +12,7 @@
   - Runtime ufficiale: `uv` / `uvx`
   - Fallback accettato: `python3` locale solo se `uv/uvx` non disponibile
   - Entry point CLI: `uv run eml2md` oppure `python3 eml_to_mailmd.py`
-  - Dipendenze esterne minime: solo `rich` (output CLI). Nuove dipendenze richiedono richiesta esplicita
+  - Dipendenze esterne minime: `rich` (output CLI), `send2trash` (cestino OS). Nuove dipendenze richiedono richiesta esplicita
 - Comportamento atteso:
   - supporto `.eml` e `.elm` (case-insensitive)
   - output nella stessa cartella del sorgente
