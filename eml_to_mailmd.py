@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import re
 import sys
 from dataclasses import dataclass
@@ -38,11 +39,11 @@ class _HTMLStripper(HTMLParser):
         return text.strip()
 
 
-def strip_html(html: str) -> str:
+def strip_html(raw_html: str) -> str:
     stripper = _HTMLStripper()
-    stripper.feed(html)
+    stripper.feed(raw_html)
     stripper.close()
-    return stripper.get_text()
+    return html.unescape(stripper.get_text())
 
 
 def yaml_escape(value: str) -> str:
@@ -145,7 +146,7 @@ def pick_body(msg: EmailMessage) -> str:
         except Exception:
             raw = part.get_payload(decode=True)
             if raw is None:
-               continue
+                continue
             
             charset: str = part.get_content_charset() or "utf-8"
 
@@ -223,12 +224,12 @@ def build_mail_md(
     lines.append(f'date_raw: "{yaml_escape(date_raw)}"')
     lines.append(f'date_iso: "{yaml_escape(date_iso)}"')
     lines.append(f'date_local: "{yaml_escape(date_local)}"')
-    lines.append("attachments:")
     if attachments:
+        lines.append("attachments:")
         for a in attachments:
             lines.append(f'  - "{yaml_escape(a)}"')
     else:
-        lines.append('  - ""')
+        lines.append("attachments: []")
     lines.append("---")
     lines.append("")
     lines.append(body.strip())

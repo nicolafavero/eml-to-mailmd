@@ -125,6 +125,17 @@ Followed by the email body in plain text.
 
 ---
 
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0`  | All files converted successfully |
+| `1`  | No `.eml` / `.elm` files found in the target folder |
+| `2`  | Target folder does not exist or path is not a directory |
+| `3`  | One or more files failed to convert (partial success) |
+
+---
+
 ## Design Principles
 
 - Preserve original information (`date_raw`) for audit and traceability
