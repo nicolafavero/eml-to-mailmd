@@ -55,6 +55,8 @@ def strip_html(raw_html: str) -> str:
 def yaml_escape(value: str) -> str:
     """Escape a string value for safe YAML double-quoted output."""
     value = value.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+    value = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', value)
+    value = value.replace("\t", " ")
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
