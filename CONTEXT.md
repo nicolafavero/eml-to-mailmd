@@ -21,13 +21,9 @@ completa e stabile. Nessun bug noto.
 
 ## Modifiche recenti
 
+- `2005730` — Scaffolding: uv alignment, CONTEXT.md, AI agent support, .gitignore completo
 - `5534847` — Fix quality audit UR-002: html.unescape, pyproject >=3.11, attachments: [], PEP 8, exit codes in README
 - `4d78b95` — Fix README: repo URL, comandi, wrapper script
-- `0e19797` — Allineamento docs task-tracking, .gitignore per .claude/
-
-> Sessione corrente (non ancora committata): allineamento uv/pyproject.toml,
-> eliminazione main.py, .gitignore completo, scaffolding AI multi-agente,
-> aggiornamento AGENTS.md, creazione CONTEXT.md.
 
 ## Problemi noti
 
