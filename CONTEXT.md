@@ -5,13 +5,14 @@ Stato corrente del progetto. Aggiornato dall'agente a fine sessione.
 > **Regola**: ogni agente DEVE leggere questo file a inizio sessione e aggiornarlo
 > prima di chiudere. Per dettagli sulle modifiche passate consultare `git log`.
 
-Ultimo aggiornamento: 2026-03-18 — Claude Opus 4.6
+Ultimo aggiornamento: 2026-03-18 — Claude Opus 4.6 (sessione code review + fix)
 
 ## Stato attuale
 
 Il progetto è una CLI Python single-file (`eml_to_mailmd.py`) che converte
 email `.eml/.elm` in file Markdown con frontmatter YAML. Funzionalità core
-completa e stabile. Nessun bug noto.
+completa e stabile. Ampia sessione di code review (3 reviewer: quality, tests,
+security) con fix P1/P2/P3 applicati.
 
 - CLI funzionante: `uv run eml2md [folder] [--recursive] [--no-color] [--keep]`
 - Entry point registrato in `pyproject.toml` (build: hatchling)
@@ -26,20 +27,27 @@ completa e stabile. Nessun bug noto.
 
 ## Modifiche recenti
 
-- `0425562` — Fix contatore not_trashed per includere caso trash-failed (UR-003)
-- `252cf0f` — Update docs per validazione, trash, --keep (UR-003)
-- `00a00ef` — Orchestrazione validazione+trash in main() con --keep (UR-003)
-- `6988f00` — Fix Rich markup injection in nomi file con brackets (UR-004)
-- `ef754f6` — Refactor main() per output Rich con progress bar e tabella (UR-004)
+- `783ff03` — Merge fix/p1-fixes: 4 fix P1 (yaml_escape control chars, HTMLStripper script/style, nullcontext loop, regex frontmatter parser)
+- `30053c7` — Clean up imports, type hints, costanti (P3 fixes)
+- `1cdeb23` — Harden quality, security, resilience (P1+P2: yaml_escape newline, _decode_part, except specifici, MAX_EML_SIZE, validazione immediata, open(x))
+
+## Code review
+
+Report completo in `docs/code-review-report-v2.md` con 3 report individuali:
+- `docs/review-quality.md` — Score: 7/10
+- `docs/review-tests.md` — Coverage: 0%
+- `docs/review-security.md` — Score: 7/10
 
 ## Problemi noti
 
-- Nessun test unitario automatizzato (solo test manuali e ad-hoc)
+- Nessun test unitario automatizzato (CRITICO — vedi review)
 - Timezone hardcoded `Europe/Rome` (by design, non un bug)
 - `.python-version` pinna 3.14 (preferenza locale, gitignored)
+- `safe_filename()` senza troncamento (filename >255 byte possibile)
+- Dipendenze non pinnate con upper bound
 
 ## Prossimi passi
 
-- Valutare aggiunta di test suite minimale (pytest)
-- Valutare flag `--verbose` per visibilità su fallback charset/codec
-- Valutare supporto timezone configurabile (bassa priorità)
+- **P0**: Creare test suite pytest (9 casi P0 + 11 P1 identificati nella review)
+- **P2**: Limite parti MIME, fallback except in process_file, pinnare dipendenze
+- **P3**: Fix minori (costanti raggruppate, exit codes IntEnum, symlink handling)
