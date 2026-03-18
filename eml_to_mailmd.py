@@ -275,31 +275,61 @@ def print_result(console: Console, result: Result) -> None:
 
 def print_summary(console: Console, results: List[Result]) -> None:
     """Print a summary table of all conversion results."""
+    has_post = any(r.validated or r.validation_errors for r in results)
+
     table = Table(title="Riepilogo conversione")
     table.add_column("File", style="cyan")
     table.add_column("Stato")
     table.add_column("Output")
+    if has_post:
+        table.add_column("Post")
 
     for r in results:
         if r.ok:
-            table.add_row(escape(r.src.name), "[green]✓ OK[/]", escape(r.out.name))
+            stato = "[green]✓ OK[/]"
+            output = escape(r.out.name)
         else:
-            table.add_row(escape(r.src.name), "[red]✗ Errore[/]", escape(r.message))
+            stato = "[red]✗ Errore[/]"
+            output = escape(r.message)
+
+        if has_post:
+            if not r.ok:
+                post = ""
+            elif r.trashed:
+                post = "[green]✓ cestinato[/]"
+            elif r.validated and not r.trashed:
+                post = "[yellow]⚠ cestino fallito[/]"
+            elif r.validation_errors:
+                post = "[yellow]⚠ non cestinato[/]"
+            else:
+                post = ""
+            table.add_row(escape(r.src.name), stato, output, post)
+        else:
+            table.add_row(escape(r.src.name), stato, output)
 
     console.print()
     console.print(table)
 
     ok_count = sum(1 for r in results if r.ok)
     fail_count = len(results) - ok_count
+    trashed_count = sum(1 for r in results if r.trashed)
+    not_trashed = sum(1 for r in results if r.ok and not r.validated and r.validation_errors)
     total = len(results)
 
-    if fail_count == 0:
-        console.print(f"\n[green bold]Completato: {ok_count}/{total} convertiti[/]")
+    parts: list[str] = [f"{ok_count}/{total} convertiti"]
+    if fail_count:
+        parts.append(f"{fail_count} errori")
+    if trashed_count:
+        parts.append(f"{trashed_count} cestinati")
+    if not_trashed:
+        parts.append(f"{not_trashed} non cestinati")
+
+    summary = ", ".join(parts)
+
+    if fail_count or not_trashed:
+        console.print(f"\n[yellow bold]Completato: {summary}[/]")
     else:
-        console.print(
-            f"\n[yellow bold]Completato: {ok_count}/{total} convertiti, "
-            f"{fail_count} errori[/]"
-        )
+        console.print(f"\n[green bold]Completato: {summary}[/]")
 
 
 def process_file(path: Path) -> tuple[Result, Optional[EmailMessage]]:
