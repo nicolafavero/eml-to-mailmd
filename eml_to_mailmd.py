@@ -22,6 +22,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
+from send2trash import send2trash as _send2trash
 
 
 ROME_TZ = ZoneInfo("Europe/Rome")
@@ -248,6 +249,10 @@ class Result:
     out: Path
     ok: bool
     message: str
+    validated: bool = False
+    trashed: bool = False
+    trash_message: str = ""
+    validation_errors: tuple[str, ...] = ()
 
 
 def create_console(no_color: bool = False) -> Console:
@@ -292,11 +297,11 @@ def print_summary(console: Console, results: List[Result]) -> None:
         )
 
 
-def process_file(path: Path) -> Result:
+def process_file(path: Path) -> tuple[Result, Optional[EmailMessage]]:
     try:
         msg = load_eml(path)
     except Exception as e:
-        return Result(path, Path(), False, f"Errore parsing EML: {e}")
+        return Result(path, Path(), False, f"Errore parsing EML: {e}"), None
 
     date_raw = str(msg.get("Date", "")).strip()
     dt = parse_date_raw_to_dt(date_raw)
@@ -328,9 +333,9 @@ def process_file(path: Path) -> Result:
     try:
         out.write_text(md, encoding="utf-8")
     except Exception as e:
-        return Result(path, out, False, f"Errore scrittura output: {e}")
+        return Result(path, out, False, f"Errore scrittura output: {e}"), msg
 
-    return Result(path, out, True, "OK")
+    return Result(path, out, True, "OK"), msg
 
 
 def find_eml_files(folder: Path) -> List[Path]:
@@ -403,13 +408,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         ) as progress:
             task = progress.add_task("Conversione...", total=len(emls))
             for p in emls:
-                res = process_file(p)
+                res, _msg = process_file(p)
                 results.append(res)
                 print_result(console, res)
                 progress.advance(task)
     else:
         for p in emls:
-            res = process_file(p)
+            res, _msg = process_file(p)
             results.append(res)
             print_result(console, res)
 
