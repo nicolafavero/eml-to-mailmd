@@ -313,7 +313,7 @@ def print_summary(console: Console, results: List[Result]) -> None:
     ok_count = sum(1 for r in results if r.ok)
     fail_count = len(results) - ok_count
     trashed_count = sum(1 for r in results if r.trashed)
-    not_trashed = sum(1 for r in results if r.ok and not r.validated and r.validation_errors)
+    not_trashed = sum(1 for r in results if r.ok and (r.validated or r.validation_errors) and not r.trashed)
     total = len(results)
 
     parts: list[str] = [f"{ok_count}/{total} convertiti"]
