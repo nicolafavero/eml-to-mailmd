@@ -262,6 +262,35 @@ def print_result(console: Console, result: Result) -> None:
         console.print(f"[red]✗[/] {result.src.name}: {result.message}")
 
 
+def print_summary(console: Console, results: List[Result]) -> None:
+    """Print a summary table of all conversion results."""
+    table = Table(title="Riepilogo conversione")
+    table.add_column("File", style="cyan")
+    table.add_column("Stato")
+    table.add_column("Output")
+
+    for r in results:
+        if r.ok:
+            table.add_row(r.src.name, "[green]✓ OK[/]", r.out.name)
+        else:
+            table.add_row(r.src.name, "[red]✗ Errore[/]", r.message)
+
+    console.print()
+    console.print(table)
+
+    ok_count = sum(1 for r in results if r.ok)
+    fail_count = len(results) - ok_count
+    total = len(results)
+
+    if fail_count == 0:
+        console.print(f"\n[green bold]Completato: {ok_count}/{total} convertiti[/]")
+    else:
+        console.print(
+            f"\n[yellow bold]Completato: {ok_count}/{total} convertiti, "
+            f"{fail_count} errori[/]"
+        )
+
+
 def process_file(path: Path) -> Result:
     try:
         msg = load_eml(path)
