@@ -29,12 +29,23 @@ PROGRESS_THRESHOLD = 5
 
 
 class _HTMLStripper(HTMLParser):
+    _SKIP_TAGS = frozenset({"script", "style"})
+
     def __init__(self) -> None:
         super().__init__()
         self._chunks: List[str] = []
+        self._skip_depth: int = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in self._SKIP_TAGS:
+            self._skip_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._SKIP_TAGS and self._skip_depth > 0:
+            self._skip_depth -= 1
 
     def handle_data(self, data: str) -> None:
-        if data:
+        if data and self._skip_depth == 0:
             self._chunks.append(data)
 
     def get_text(self) -> str:
